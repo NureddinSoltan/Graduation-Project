@@ -49,7 +49,14 @@ function processWelcomeToChatTransition() {
             welcomeContainer.style.padding = '0';
             console.log('Welcome container hidden');
         }
-        
+        const warningContainer = document.getElementById('warning-message');
+        if (warningContainer) {
+            warningContainer.style.position = 'absolute';
+            warningContainer.style.bottom = '15px';
+            warningContainer.style.left = '50%';
+            warningContainer.style.transform = 'translate(-50%)';
+            console.log('Warning message hidden');
+        }
         // Hide suggested topics if they exist
         const suggestedTopics = document.getElementById('suggested-topics');
         if (suggestedTopics) {
@@ -82,15 +89,22 @@ function processWelcomeToChatTransition() {
         }
         
         // Configure chat messages container for proper display
-        chatContainer.style.height = 'calc(100vh - 180px)';
-        chatContainer.style.overflowY = 'auto';
+        chatContainer.style.height = 'calc(100vh - 240px)'; // Adjusted height to leave room for input
+        chatContainer.style.overflowY = 'auto'; // Only the messages area scrolls
         chatContainer.style.display = 'flex';
         chatContainer.style.flexDirection = 'column';
         chatContainer.style.paddingRight = '8px';
-        chatContainer.style.marginTop = '120px'; // Increased margin to move messages lower
+        chatContainer.style.marginTop = '0'; // No top margin needed
         chatContainer.style.position = 'relative';
         chatContainer.style.zIndex = '5';
-        console.log('Chat container styles applied');
+        
+        // Make sure the parent container doesn't scroll
+        const mainContent = document.querySelector('main.flex-1');
+        if (mainContent) {
+            mainContent.style.overflowY = 'hidden';
+        }
+        
+        console.log('Chat container styles applied - only messages area scrollable');
     }
 }
 
@@ -111,23 +125,45 @@ function handleMessageSubmit(event) {
         return;
     }
     
-    // Process the welcome to chat transition
-    processWelcomeToChatTransition();
-
-    // Use the original addMessageToChat from clinexa.js to add the user message
-    if (typeof window.addMessageToChat === 'function') {
-        window.addMessageToChat(userMessage, true);
-    } else {
-        console.error('clinexa.js addMessageToChat function not found');
+    // Check if this is a follow-up option selection (like "yes")
+    if (typeof window.processYesResponse === 'function') {
+        const followUpResponse = window.processYesResponse(userMessage);
+        if (followUpResponse) {
+            // Add user message to chat
+            if (typeof addMessageToChat === 'function') {
+                addMessageToChat(userMessage, true);
+                
+                // Add the follow-up response
+                addMessageToChat(followUpResponse, false, true); // true for HTML content
+                
+                // Clear input
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+                return;
+            }
+        }
     }
-
+    
+    // Check if this is the first message in chat.html (welcome container is still visible)
+    const welcomeContainer = document.getElementById('welcome-container');
+    if (welcomeContainer && welcomeContainer.style.display !== 'none') {
+        // Process the transition to chat mode
+        processWelcomeToChatTransition();
+    }
+    
+    // Add user message to chat
+    if (typeof addMessageToChat === 'function') {
+        addMessageToChat(userMessage, true);
+    } else {
+        console.error('addMessageToChat function not available');
+    }
+    
     // Clear input
     messageInput.value = '';
-
-    // Create a unique ID for the loading message
-    const loadingId = 'loading-' + Date.now();
+    messageInput.style.height = 'auto';
     
-    // Show loading message with the unique ID
+    // Create a loading message while waiting for AI response
+    const loadingId = 'loading-' + Date.now();
     const chatContainer = document.getElementById('chat-messages');
     const loadingDiv = document.createElement('div');
     loadingDiv.id = loadingId;
@@ -160,20 +196,112 @@ function handleMessageSubmit(event) {
     getModelPrediction(userMessage)
         .then(aiResponse => {
             console.log("AI response:", aiResponse);
-            // Find and remove the loading message by its unique ID
+            // Find and remove the loading message
             const loadingMessage = document.getElementById(loadingId);
             if (loadingMessage) {
                 loadingMessage.remove();
             }
-            // Add the actual AI response using the original function from clinexa.js
-            if (typeof window.addMessageToChat === 'function') {
-                window.addMessageToChat(aiResponse, false);
+            
+            // Process the response for disease diagnosis if applicable
+            let processedResponse = aiResponse;
+            let isDiseaseResponse = false;
+            
+            if (typeof window.processDiseaseResponse === 'function') {
+                // Check if this is a disease prediction response
+                if (aiResponse.includes('Prediction:')) {
+                    processedResponse = window.processDiseaseResponse(aiResponse);
+                    isDiseaseResponse = true;
+                } else if (aiResponse.includes('🩺') || aiResponse.includes('Description:')) {
+                    // This is already a processed disease response (coming from welcome page)
+                    processedResponse = aiResponse;
+                    isDiseaseResponse = true;
+                }
+            }
+            
+            // Add the AI response with typing effect
+            if (typeof addMessageToChat === 'function') {
+                // Check if the response is HTML (from disease module)
+                const isHtml = isDiseaseResponse || processedResponse.includes('<div') || processedResponse.includes('<button');
+                
+                // Create a new message div for AI response with typing effect
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'w-full new-message';
+                
+                // Create content div for AI message
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'ai-message';
+                
+                // Add empty content div to message div
+                messageDiv.appendChild(contentDiv);
+                
+                // Add message div to chat container
+                chatContainer.appendChild(messageDiv);
+                
+                // We'll handle the typing animation ourselves, so we'll set a flag to prevent
+                // the original addMessageToChat function from being called again
+                window.skipNextAddMessageToChat = true;
+                
+                // Implement typing effect based on content type
+                if (isHtml) {
+                    // For HTML content, we'll parse and display it properly
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(processedResponse, 'text/html');
+                    
+                    if (isDiseaseResponse) {
+                        // For disease responses, we want to maintain the original structure
+                        contentDiv.innerHTML = processedResponse;
+                    } else {
+                        // For other HTML content, process sections one by one
+                        const sections = doc.querySelectorAll('*:not(script):not(style)');
+                        let sectionIndex = 0;
+                        
+                        function typeNextSection() {
+                            if (sectionIndex < sections.length) {
+                                const section = sections[sectionIndex];
+                                // Skip empty text nodes
+                                if (section.textContent && section.textContent.trim() !== '') {
+                                    contentDiv.appendChild(section);
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                }
+                                sectionIndex++;
+                                setTimeout(typeNextSection, 100);
+                            }
+                        }
+                        
+                        // Start typing sections
+                        typeNextSection();
+                    }
+                    
+                    // Start typing sections
+                    typeNextSection();
+                } else {
+                    // For plain text, use the original typing effect
+                    let i = 0;
+                    const typingSpeed = 10; // milliseconds per character
+                    
+                    function typeWriter() {
+                        if (i < processedResponse.length) {
+                            contentDiv.textContent += processedResponse.charAt(i);
+                            i++;
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                            setTimeout(typeWriter, typingSpeed);
+                        }
+                    }
+                    
+                    // Start typing effect
+                    typeWriter();
+                }
+                
+                // Save conversation to history
+                if (typeof saveConversation === 'function') {
+                    saveConversation(userMessage, aiResponse);
+                }
             } else {
-                console.error('clinexa.js addMessageToChat function not found');
+                console.error('addMessageToChat function not available');
             }
         })
         .catch(error => {
-            console.error("Error in AI response:", error);
+            console.error('Error getting AI response:', error);
             // If there's an error, still remove the loading message
             const loadingMessage = document.getElementById(loadingId);
             if (loadingMessage) {
@@ -194,8 +322,79 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Make the addMessageToChat function from clinexa.js available globally
     if (typeof addMessageToChat === 'function') {
-        window.addMessageToChat = addMessageToChat;
-        console.log('chat.js: stored clinexa.js addMessageToChat function globally');
+        // Extend addMessageToChat to handle HTML content
+        const originalAddMessageToChat = addMessageToChat;
+        window.addMessageToChat = function(message, isUser = false, isHtml = false) {
+            // Check if we should skip this call (for AI messages with typing animation)
+            if (!isUser && window.skipNextAddMessageToChat) {
+                window.skipNextAddMessageToChat = false;
+                return;
+            }
+            
+            const chatContainer = document.getElementById('chat-messages');
+            if (!chatContainer) return;
+            
+            // Create the message container with appropriate styling
+            const messageDiv = document.createElement('div');
+            
+            if (isUser) {
+                // User message - right-aligned with avatar
+                messageDiv.className = 'flex w-full justify-end new-message';
+                
+                // Create user avatar with the same profile icon as in the top bar
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = 'ml-2 flex-shrink-0 flex items-end';
+                avatarDiv.innerHTML = `
+                    <div class="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-gray-700 dark:text-white text-sm font-semibold">
+                        U
+                    </div>
+                `;
+                
+                // Create content div for user message
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'user-message';
+                contentDiv.textContent = message;
+                
+                // Add content and avatar to the message div
+                messageDiv.appendChild(contentDiv);
+                messageDiv.appendChild(avatarDiv);
+            } else {
+                // AI message - left-aligned without avatar for ChatGPT style
+                messageDiv.className = 'w-full new-message';
+                
+                // Create content div for AI message
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'ai-message';
+                
+                if (isHtml) {
+                    // Set HTML content directly
+                    contentDiv.innerHTML = message;
+                } else {
+                    contentDiv.textContent = message;
+                }
+                
+                // Add content to the message div
+                messageDiv.appendChild(contentDiv);
+            }
+            
+            chatContainer.appendChild(messageDiv);
+            
+            // Scroll to bottom of chat
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // Add a subtle fade-in animation
+            messageDiv.animate(
+                [
+                    { opacity: 0, transform: 'translateY(10px)' },
+                    { opacity: 1, transform: 'translateY(0)' }
+                ],
+                {
+                    duration: 300,
+                    easing: 'ease-out'
+                }
+            );
+        };
+        console.log('chat.js: extended addMessageToChat function to handle HTML content');
     }
     
     // Check if there's a first message from welcome.html
@@ -248,9 +447,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (loadingMessage) {
                         loadingMessage.remove();
                     }
+                    
+                    // Process the response for disease diagnosis if applicable
+                    let processedResponse = aiResponse;
+                    if (typeof window.processDiseaseResponse === 'function' && aiResponse.includes('Prediction:')) {
+                        processedResponse = window.processDiseaseResponse(aiResponse);
+                    }
+                    
                     // Add the actual AI response
                     if (typeof addMessageToChat === 'function') {
-                        addMessageToChat(aiResponse, false);
+                        // Check if the response is HTML (from disease module)
+                        const isHtml = processedResponse.includes('<div') || processedResponse.includes('<button');
+                        addMessageToChat(processedResponse, false, isHtml);
                     } else {
                         console.error('addMessageToChat function not found');
                     }
@@ -310,7 +518,109 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.warn('chat.js: Backend server may not be running:', error.message);
         });
-
-    //     addMessageToChat("I'm your medical assistant. Please describe your symptoms.", false);
-    // }
+        
+    // Add event listener for option button clicks
+    document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('option-button')) {
+            const option = event.target.getAttribute('onclick');
+            if (option) {
+                // Extract the option from onclick="handleFollowUpOption('option')"  
+                const optionMatch = option.match(/handleFollowUpOption\(['"](.*?)['"]\)/);  
+                if (optionMatch && optionMatch[1]) {  
+                    const selectedOption = optionMatch[1];  
+                    if (typeof window.handleFollowUpOption === 'function') {  
+                        const response = window.handleFollowUpOption(selectedOption);  
+                        if (response) {  
+                            // Set flag to prevent duplicate message
+                            window.skipNextAddMessageToChat = true;
+                            
+                            // Create a loading message while waiting
+                            const loadingId = 'loading-' + Date.now();
+                            const chatContainer = document.getElementById('chat-messages');
+                            const loadingDiv = document.createElement('div');
+                            loadingDiv.id = loadingId;
+                            loadingDiv.className = 'w-full new-message';
+                            
+                            // Create content div for AI typing message
+                            const loadingContent = document.createElement('div');
+                            loadingContent.className = 'ai-message';
+                            loadingContent.textContent = 'AI is typing...';
+                            
+                            // Only add the content div
+                            loadingDiv.appendChild(loadingContent);
+                            
+                            // Add a subtle pulse animation
+                            loadingContent.animate(
+                                [
+                                    { opacity: 0.5 },
+                                    { opacity: 1 },
+                                    { opacity: 0.5 }
+                                ],
+                                {
+                                    duration: 1500,
+                                    iterations: Infinity
+                                }
+                            );
+                            
+                            chatContainer.appendChild(loadingDiv);
+                            
+                            // Use setTimeout to simulate a short processing time
+                            setTimeout(() => {
+                                // Remove loading message
+                                const loadingMessage = document.getElementById(loadingId);
+                                if (loadingMessage) {
+                                    loadingMessage.remove();
+                                }
+                                
+                                // Create a new message div for AI response with typing effect
+                                const messageDiv = document.createElement('div');
+                                messageDiv.className = 'w-full new-message';
+                                
+                                // Create content div for AI message
+                                const contentDiv = document.createElement('div');
+                                contentDiv.className = 'ai-message';
+                                
+                                // Add empty content div to message div
+                                messageDiv.appendChild(contentDiv);
+                                
+                                // Add message div to chat container
+                                chatContainer.appendChild(messageDiv);
+                                
+                                // For follow-up options, we want to maintain the original response structure
+                                if (response.includes('disease-section') || response.includes('follow-up-options')) {
+                                    // This is a disease follow-up response, preserve the HTML structure
+                                    contentDiv.innerHTML = response;
+                                    
+                                    // Scroll to show the new content
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                } else {
+                                    // For non-disease responses, use the typing effect
+                                    const parser = new DOMParser();
+                                    const doc = parser.parseFromString(response, 'text/html');
+                                    const sections = doc.querySelectorAll('*:not(script):not(style)');
+                                    let sectionIndex = 0;
+                                    
+                                    function typeNextSection() {
+                                        if (sectionIndex < sections.length) {
+                                            const section = sections[sectionIndex];
+                                            // Skip empty text nodes
+                                            if (section.textContent && section.textContent.trim() !== '') {
+                                                contentDiv.appendChild(section);
+                                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                                            }
+                                            sectionIndex++;
+                                            setTimeout(typeNextSection, 100); // Shorter delay for better typing effect
+                                        }
+                                    }
+                                    
+                                    // Start typing sections
+                                    typeNextSection();
+                                }
+                            }, 500); // Short delay to make the typing indicator visible
+                        }  
+                    }  
+                }  
+            }  
+        }  
+    });
 });

@@ -85,6 +85,7 @@ textarea#message-input {
     min-height: 44px;
     max-height: 200px;
     overflow-y: auto;
+    border: 1px solid #5d5d5d;
 }
 
 /* Button hover effects */
