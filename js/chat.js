@@ -324,6 +324,28 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof addMessageToChat === 'function') {
         // Extend addMessageToChat to handle HTML content
         const originalAddMessageToChat = addMessageToChat;
+        // Function to smoothly scroll chat to bottom
+        function scrollChatToBottom() {
+            const chatContainer = document.getElementById('chat-messages');
+            if (!chatContainer) return;
+            
+            // Use requestAnimationFrame for smooth scrolling
+            requestAnimationFrame(() => {
+                // First try with smooth behavior
+                chatContainer.scrollTo({
+                    top: chatContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+                
+                // Fallback to instant scroll if smooth scrolling is not supported
+                setTimeout(() => {
+                    if (Math.abs(chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight) > 100) {
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }
+                }, 100);
+            });
+        }
+
         window.addMessageToChat = function(message, isUser = false, isHtml = false) {
             // Check if we should skip this call (for AI messages with typing animation)
             if (!isUser && window.skipNextAddMessageToChat) {
@@ -377,10 +399,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 messageDiv.appendChild(contentDiv);
             }
             
+            // Add message to the container
             chatContainer.appendChild(messageDiv);
             
-            // Scroll to bottom of chat
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Scroll to bottom after a small delay to ensure content is rendered
+            setTimeout(scrollChatToBottom, 50);
             
             // Add a subtle fade-in animation
             messageDiv.animate(
@@ -506,6 +529,20 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         updateSendButtonState();
         messageInput.addEventListener('input', updateSendButtonState);
+        
+        // Add event listener for Enter key to send message
+        messageInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault(); // Prevent default newline
+                
+                // Only submit if there's content and the button is not disabled
+                if (messageInput.value.trim() !== '' && !sendButton.disabled) {
+                    // Trigger form submission
+                    messageForm.dispatchEvent(new Event('submit'));
+                }
+            }
+            // If Shift+Enter is pressed, allow default behavior (new line)
+        });
     }
 
     // Check if the backend server is running
@@ -586,13 +623,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                 // Add message div to chat container
                                 chatContainer.appendChild(messageDiv);
                                 
-                                // For follow-up options, we want to maintain the original response structure
-                                if (response.includes('disease-section') || response.includes('follow-up-options')) {
-                                    // This is a disease follow-up response, preserve the HTML structure
+                                // For follow-up options or restart message, we want to maintain the original response structure
+                                if (response.includes('disease-section') || response.includes('follow-up-options') || response.includes('What symptoms are you experiencing?')) {
+                                    // This is a disease follow-up response or restart message, preserve the HTML structure
                                     contentDiv.innerHTML = response;
                                     
-                                    // Scroll to show the new content
-                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    // Ensure smooth scrolling to the new content
+                                    setTimeout(() => {
+                                        chatContainer.scrollTo({
+                                            top: chatContainer.scrollHeight,
+                                            behavior: 'smooth'
+                                        });
+                                    }, 50);
                                 } else {
                                     // For non-disease responses, use the typing effect
                                     const parser = new DOMParser();

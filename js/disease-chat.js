@@ -139,8 +139,6 @@ function generateFollowUpOptions() {
  * @returns {string} Response for the selected option
  */
 function handleFollowUpOption(option) {
-    if (!currentDisease) return "I'm sorry, I don't have information about this disease.";
-    
     let response = '';
     
     if (option === 'restart') {
@@ -149,6 +147,9 @@ function handleFollowUpOption(option) {
         currentDisease = null;
         return "What symptoms are you experiencing?";
     }
+    
+    // Check for currentDisease for other options
+    if (!currentDisease) return "I'm sorry, I don't have information about this disease.";
     
     // Mark this section as shown
     shownSections[option] = true;

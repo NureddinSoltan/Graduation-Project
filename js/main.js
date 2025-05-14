@@ -1,5 +1,24 @@
 // Main JavaScript file for the Medical Diagnosis AI Chatbot
 
+// Toggle password visibility
+function togglePasswordVisibility(inputId, eyeIconId, eyeOffIconId) {
+    const passwordInput = document.getElementById(inputId);
+    const eyeIcon = document.getElementById(eyeIconId);
+    const eyeOffIcon = document.getElementById(eyeOffIconId);
+    
+    if (passwordInput && eyeIcon && eyeOffIcon) {
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            eyeIcon.classList.add('hidden');
+            eyeOffIcon.classList.remove('hidden');
+        } else {
+            passwordInput.type = 'password';
+            eyeIcon.classList.remove('hidden');
+            eyeOffIcon.classList.add('hidden');
+        }
+    }
+}
+
 // Initialize when DOM is fully loaded
 document.addEventListener('DOMContentLoaded', function() {
     // Check dark mode preference
@@ -12,6 +31,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const darkModeToggle = document.getElementById('dark-mode-toggle');
     if (darkModeToggle) {
         darkModeToggle.addEventListener('click', toggleDarkMode);
+    }
+    
+    // Setup password visibility toggles
+    const togglePassword = document.getElementById('togglePassword');
+    if (togglePassword) {
+        togglePassword.addEventListener('click', () => {
+            togglePasswordVisibility('password', 'eyeIcon', 'eyeOffIcon');
+        });
+    }
+    
+    const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
+    if (toggleConfirmPassword) {
+        toggleConfirmPassword.addEventListener('click', () => {
+            togglePasswordVisibility('confirm-password', 'confirmEyeIcon', 'confirmEyeOffIcon');
+        });
     }
 });
 
