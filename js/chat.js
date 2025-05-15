@@ -192,128 +192,206 @@ function handleMessageSubmit(event) {
     
     chatContainer.appendChild(loadingDiv);
     
-    // Process the AI response
-    getModelPrediction(userMessage)
-        .then(aiResponse => {
-            console.log("AI response:", aiResponse);
-            // Find and remove the loading message
-            const loadingMessage = document.getElementById(loadingId);
-            if (loadingMessage) {
-                loadingMessage.remove();
-            }
-            
-            // Process the response for disease diagnosis if applicable
-            let processedResponse = aiResponse;
-            let isDiseaseResponse = false;
-            
-            if (typeof window.processDiseaseResponse === 'function') {
-                // Check if this is a disease prediction response
-                if (aiResponse.includes('Prediction:')) {
-                    processedResponse = window.processDiseaseResponse(aiResponse);
-                    isDiseaseResponse = true;
-                } else if (aiResponse.includes('🩺') || aiResponse.includes('Description:')) {
-                    // This is already a processed disease response (coming from welcome page)
-                    processedResponse = aiResponse;
-                    isDiseaseResponse = true;
-                }
-            }
-            
-            // Add the AI response with typing effect
-            if (typeof addMessageToChat === 'function') {
-                // Check if the response is HTML (from disease module)
-                const isHtml = isDiseaseResponse || processedResponse.includes('<div') || processedResponse.includes('<button');
+    // Process the user message - first checking for topic matches, then falling back to disease prediction
+    processUserMessage(userMessage, loadingId, chatContainer);
+}
+
+/**
+ * Process a user message - checking for topic matches first, then disease prediction
+ * @param {string} userMessage - The user's message to process
+ * @param {string} loadingId - ID of the loading indicator
+ * @param {HTMLElement} chatContainer - The chat container element
+ */
+async function processUserMessage(userMessage, loadingId, chatContainer) {
+    console.log('🔄 [CHAT] Processing user message:', userMessage);
+    
+    try {
+        // FIRST PRIORITY: Check if the message matches a predefined health topic
+        console.log('🔍 [CHAT] Step 1: Checking for topic match before disease prediction');
+        let topicMatched = false;
+        
+        if (typeof window.matchTopicByTitle === 'function') {
+            console.log('🔍 [CHAT] Topic matcher function found, attempting to match...');
+            try {
+                const matchedTopic = await window.matchTopicByTitle(userMessage);
                 
-                // Create a new message div for AI response with typing effect
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'w-full new-message';
-                
-                // Create content div for AI message
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'ai-message';
-                
-                // Add empty content div to message div
-                messageDiv.appendChild(contentDiv);
-                
-                // Add message div to chat container
-                chatContainer.appendChild(messageDiv);
-                
-                // We'll handle the typing animation ourselves, so we'll set a flag to prevent
-                // the original addMessageToChat function from being called again
-                window.skipNextAddMessageToChat = true;
-                
-                // Implement typing effect based on content type
-                if (isHtml) {
-                    // For HTML content, we'll parse and display it properly
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(processedResponse, 'text/html');
+                // If we found a matching topic, display its abstract instead of disease prediction
+                if (matchedTopic) {
+                    console.log('✅ [CHAT] TOPIC MATCH CONFIRMED:', matchedTopic.title);
+                    console.log('⚠️ [CHAT] Skipping disease prediction, showing topic abstract instead');
+                    topicMatched = true;
                     
-                    if (isDiseaseResponse) {
-                        // For disease responses, we want to maintain the original structure
-                        contentDiv.innerHTML = processedResponse;
-                    } else {
-                        // For other HTML content, process sections one by one
-                        const sections = doc.querySelectorAll('*:not(script):not(style)');
-                        let sectionIndex = 0;
+                    // Remove loading message
+                    const loadingMessage = document.getElementById(loadingId);
+                    if (loadingMessage) {
+                        loadingMessage.remove();
+                    }
+                    
+                    // Format the topic response
+                    const topicResponse = window.formatTopicResponse(matchedTopic);
+                    console.log('📄 [CHAT] Displaying topic response for:', matchedTopic.title);
+                    
+                    // Display the topic response
+                    if (typeof addMessageToChat === 'function') {
+                        addMessageToChat(topicResponse, false, true); // true for HTML content
+                    }
+                    
+                    return; // Exit early - don't proceed to disease prediction
+                } else {
+                    console.log('❌ [CHAT] No topic match found, proceeding to disease prediction');
+                }
+            } catch (topicError) {
+                console.error('❌ [CHAT] Error in topic matching:', topicError);
+                console.log('⚠️ [CHAT] Continuing to disease prediction due to error in topic matching');
+                // Continue to disease prediction if topic matching fails
+            }
+        } else {
+            console.error('❌ [CHAT] window.matchTopicByTitle function not found!');
+            console.log('⚠️ [CHAT] Make sure topic-matcher.js is loaded before chat.js');
+        }
+        
+        // SECOND PRIORITY: Only if no topic matched, try disease prediction
+        if (!topicMatched) {
+            let aiResponse;
+            try {
+                aiResponse = await getModelPrediction(userMessage);
+                console.log("AI response:", aiResponse);
+                
+                // Find and remove the loading message
+                const loadingMessage = document.getElementById(loadingId);
+                if (loadingMessage) {
+                    loadingMessage.remove();
+                }
+                
+                // Process the response for disease diagnosis if applicable
+                let processedResponse = aiResponse;
+                let isDiseaseResponse = false;
+                
+                if (typeof window.processDiseaseResponse === 'function') {
+                    // Check if this is a disease prediction response
+                    if (aiResponse.includes('Prediction:')) {
+                        processedResponse = window.processDiseaseResponse(aiResponse);
+                        isDiseaseResponse = true;
+                    } else if (aiResponse.includes('🩺') || aiResponse.includes('Description:')) {
+                        // This is already a processed disease response (coming from welcome page)
+                        processedResponse = aiResponse;
+                        isDiseaseResponse = true;
+                    }
+                }
+                
+                // Add the AI response with typing effect
+                if (typeof addMessageToChat === 'function') {
+                    // Check if the response is HTML (from disease module)
+                    const isHtml = isDiseaseResponse || processedResponse.includes('<div') || processedResponse.includes('<button');
+                    
+                    // Create a new message div for AI response with typing effect
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'w-full new-message';
+                    
+                    // Create content div for AI message
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'ai-message';
+                    
+                    // Add empty content div to message div
+                    messageDiv.appendChild(contentDiv);
+                    
+                    // Add message div to chat container
+                    chatContainer.appendChild(messageDiv);
+                    
+                    // We'll handle the typing animation ourselves, so we'll set a flag to prevent
+                    // the original addMessageToChat function from being called again
+                    window.skipNextAddMessageToChat = true;
+                    
+                    // Implement typing effect based on content type
+                    if (isHtml) {
+                        // For HTML content, we'll parse and display it properly
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(processedResponse, 'text/html');
                         
-                        function typeNextSection() {
-                            if (sectionIndex < sections.length) {
-                                const section = sections[sectionIndex];
-                                // Skip empty text nodes
-                                if (section.textContent && section.textContent.trim() !== '') {
-                                    contentDiv.appendChild(section);
-                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                        if (isDiseaseResponse) {
+                            // For disease responses, we want to maintain the original structure
+                            contentDiv.innerHTML = processedResponse;
+                        } else {
+                            // For other HTML content, process sections one by one
+                            const sections = doc.querySelectorAll('*:not(script):not(style)');
+                            let sectionIndex = 0;
+                            
+                            function typeNextSection() {
+                                if (sectionIndex < sections.length) {
+                                    const section = sections[sectionIndex];
+                                    // Skip empty text nodes
+                                    if (section.textContent && section.textContent.trim() !== '') {
+                                        contentDiv.appendChild(section);
+                                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    }
+                                    sectionIndex++;
+                                    setTimeout(typeNextSection, 100);
                                 }
-                                sectionIndex++;
-                                setTimeout(typeNextSection, 100);
+                            }
+                            
+                            // Start typing sections
+                            typeNextSection();
+                        }
+                    } else {
+                        // For plain text, use the original typing effect
+                        let i = 0;
+                        const typingSpeed = 10; // milliseconds per character
+                        
+                        function typeWriter() {
+                            if (i < processedResponse.length) {
+                                contentDiv.textContent += processedResponse.charAt(i);
+                                i++;
+                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                                setTimeout(typeWriter, typingSpeed);
                             }
                         }
                         
-                        // Start typing sections
-                        typeNextSection();
+                        // Start typing effect
+                        typeWriter();
                     }
                     
-                    // Start typing sections
-                    typeNextSection();
+                    // Save conversation to history
+                    if (typeof saveConversation === 'function') {
+                        saveConversation(userMessage, aiResponse);
+                    }
                 } else {
-                    // For plain text, use the original typing effect
-                    let i = 0;
-                    const typingSpeed = 10; // milliseconds per character
-                    
-                    function typeWriter() {
-                        if (i < processedResponse.length) {
-                            contentDiv.textContent += processedResponse.charAt(i);
-                            i++;
-                            chatContainer.scrollTop = chatContainer.scrollHeight;
-                            setTimeout(typeWriter, typingSpeed);
-                        }
-                    }
-                    
-                    // Start typing effect
-                    typeWriter();
+                    console.error('addMessageToChat function not available');
                 }
                 
-                // Save conversation to history
-                if (typeof saveConversation === 'function') {
-                    saveConversation(userMessage, aiResponse);
+            } catch (backendError) {
+                console.error("Error contacting AI backend:", backendError);
+                // Remove loading message
+                const loadingMessage = document.getElementById(loadingId);
+                if (loadingMessage) {
+                    loadingMessage.remove();
                 }
-            } else {
-                console.error('addMessageToChat function not available');
+                // Show a fallback message to the user
+                if (typeof addMessageToChat === 'function') {
+                    addMessageToChat("I'm sorry, I'm having trouble connecting to the prediction service. Please try again later or ask me about specific health topics like:\n\n• 'What kind of cough should make me see a doctor?'\n• 'When is a fever considered serious in adults?'\n• 'How do I know if my stomach pain needs medical attention?'\n• 'When does a skin rash mean something more serious?'", false);
+                }
             }
-        })
-        .catch(error => {
-            console.error('Error getting AI response:', error);
-            // If there's an error, still remove the loading message
-            const loadingMessage = document.getElementById(loadingId);
-            if (loadingMessage) {
-                loadingMessage.remove();
-            }
-            // Add a fallback message
-            if (typeof window.addMessageToChat === 'function') {
-                window.addMessageToChat("I'm sorry, I couldn't process your request. Please try again.", false);
-            } else {
-                console.error('clinexa.js addMessageToChat function not found');
-            }
-        });
+            return; // Exit after processing either the AI response or error
+        }
+        
+        // This code should never be reached since we either:  
+        // 1. Return early after handling a topic match
+        // 2. Return after handling the AI response or error
+        console.error('Unexpected code path in processUserMessage');
+        return;
+    } catch (error) {
+        console.error('Error processing message:', error);
+        // If there's an error, still remove the loading message
+        const loadingMessage = document.getElementById(loadingId);
+        if (loadingMessage) {
+            loadingMessage.remove();
+        }
+        // Add a fallback message
+        if (typeof window.addMessageToChat === 'function') {
+            window.addMessageToChat("I'm sorry, I couldn't process your request. Please try again.", false);
+        } else {
+            console.error('addMessageToChat function not found');
+        }
+    }
 }
 
 // Initialize chat functionality
@@ -352,38 +430,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.skipNextAddMessageToChat = false;
                 return;
             }
-            
+
             const chatContainer = document.getElementById('chat-messages');
             if (!chatContainer) return;
-            
+
             // Create the message container with appropriate styling
             const messageDiv = document.createElement('div');
-            
+
             if (isUser) {
                 // User message - right-aligned with avatar
                 messageDiv.className = 'flex w-full justify-end new-message';
-                
-                // Create user avatar with the same profile icon as in the top bar
+
+                // Create user avatar that matches the top header profile icon
                 const avatarDiv = document.createElement('div');
-                avatarDiv.className = 'ml-2 flex-shrink-0 flex items-end';
-                avatarDiv.innerHTML = `
-                    <div class="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-gray-700 dark:text-white text-sm font-semibold">
-                        U
-                    </div>
-                `;
-                
+                // Changed from 'items-end' to 'items-start' to align with the first line of text
+                avatarDiv.className = 'ml-2 flex-shrink-0 flex items-start';
+
+                // Check if user has a custom profile picture
+                const userProfilePic = localStorage.getItem('userProfilePic');
+
+                if (userProfilePic) {
+                    // Use the custom profile picture if available
+                    avatarDiv.innerHTML = `
+                        <img src="${userProfilePic}" alt="User" class="h-8 w-8 rounded-full object-cover">
+                    `;
+                } else {
+                    // Use the same SVG icon as in the header (plain, no background)
+                    avatarDiv.innerHTML = `
+                        <div class="h-8 w-8 flex items-center justify-center text-gray-700 dark:text-gray-300">
+                            <svg viewBox="-0.5 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6">
+                                <path d="M12.0001 13.09C14.4909 13.09 16.5101 11.0708 16.5101 8.58C16.5101 6.08919 14.4909 4.07 12.0001 4.07C9.5093 4.07 7.49011 6.08919 7.49011 8.58C7.49011 11.0708 9.5093 13.09 12.0001 13.09Z" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M8.98008 11.91C8.97008 11.91 8.97008 11.91 8.96008 11.92" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M16.9701 12.82C19.5601 14.4 21.3201 17.19 21.5001 20.4C21.5101 20.69 21.2801 20.93 20.9901 20.93H3.01007C2.72007 20.93 2.49007 20.69 2.50007 20.4C2.68007 17.21 4.43007 14.43 6.99007 12.85" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                    `;
+                }
+
                 // Create content div for user message
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'user-message';
                 contentDiv.textContent = message;
-                
+
                 // Add content and avatar to the message div
                 messageDiv.appendChild(contentDiv);
                 messageDiv.appendChild(avatarDiv);
             } else {
                 // AI message - left-aligned without avatar for ChatGPT style
                 messageDiv.className = 'w-full new-message';
-                
+
                 // Create content div for AI message
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'ai-message';
@@ -422,8 +517,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check if there's a first message from welcome.html
     const firstMessage = localStorage.getItem('firstMessage');
+    const isDirectTopicClick = localStorage.getItem('isDirectTopicClick') === 'true';
+    
     if (firstMessage) {
         console.log('Processing first message from welcome page:', firstMessage);
+        console.log('Is direct topic click:', isDirectTopicClick);
+        
         // Add the user message to the chat
         if (typeof addMessageToChat === 'function') {
             addMessageToChat(firstMessage, true);
@@ -431,7 +530,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Process the welcome to chat transition
             processWelcomeToChatTransition();
             
-            // Create a loading message while waiting for AI response
+            // Create a loading message while waiting for response
             const loadingId = 'loading-' + Date.now();
             const chatContainer = document.getElementById('chat-messages');
             const loadingDiv = document.createElement('div');
@@ -461,47 +560,50 @@ document.addEventListener('DOMContentLoaded', function() {
             
             chatContainer.appendChild(loadingDiv);
             
-            // Process the AI response
-            getModelPrediction(firstMessage)
-                .then(aiResponse => {
-                    console.log("AI response for first message:", aiResponse);
-                    // Find and remove the loading message
-                    const loadingMessage = document.getElementById(loadingId);
-                    if (loadingMessage) {
-                        loadingMessage.remove();
-                    }
-                    
-                    // Process the response for disease diagnosis if applicable
-                    let processedResponse = aiResponse;
-                    if (typeof window.processDiseaseResponse === 'function' && aiResponse.includes('Prediction:')) {
-                        processedResponse = window.processDiseaseResponse(aiResponse);
-                    }
-                    
-                    // Add the actual AI response
-                    if (typeof addMessageToChat === 'function') {
-                        // Check if the response is HTML (from disease module)
-                        const isHtml = processedResponse.includes('<div') || processedResponse.includes('<button');
-                        addMessageToChat(processedResponse, false, isHtml);
-                    } else {
-                        console.error('addMessageToChat function not found');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error getting AI response:', error);
-                    const loadingMessage = document.getElementById(loadingId);
-                    if (loadingMessage) {
-                        loadingMessage.remove();
-                    }
-                    // Add a fallback message
-                    if (typeof addMessageToChat === 'function') {
-                        addMessageToChat("I'm sorry, I couldn't process your request. Please try again.", false);
-                    } else {
-                        console.error('addMessageToChat function not found');
-                    }
-                });
+            // If this is a direct topic click, look up the topic and display it directly
+            if (isDirectTopicClick && typeof window.matchTopicByTitle === 'function' &&
+                typeof window.formatTopicResponse === 'function') {
                 
-            // Clear the first message from localStorage
+                console.log('⚠️ Direct topic click detected, bypassing normal flow');
+                
+                // Look up the topic directly
+                window.matchTopicByTitle(firstMessage)
+                    .then(matchedTopic => {
+                        // Remove loading message
+                        const loadingMessage = document.getElementById(loadingId);
+                        if (loadingMessage) {
+                            loadingMessage.remove();
+                        }
+                        
+                        if (matchedTopic) {
+                            console.log('✅ Direct topic match found:', matchedTopic.title);
+                            
+                            // Format the topic response
+                            const topicResponse = window.formatTopicResponse(matchedTopic);
+                            
+                            // Display the topic response
+                            if (typeof addMessageToChat === 'function') {
+                                addMessageToChat(topicResponse, false, true);
+                            }
+                        } else {
+                            console.log('❌ Direct topic match failed, falling back to standard processing');
+                            // Fall back to standard message processing
+                            processUserMessage(firstMessage, loadingId, chatContainer);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error during direct topic matching:', error);
+                        // Fall back to standard message processing
+                        processUserMessage(firstMessage, loadingId, chatContainer);
+                    });
+            } else {
+                // No direct topic flag or missing functions, use standard processing
+                processUserMessage(firstMessage, loadingId, chatContainer);
+            }
+                
+            // Clear the first message and flag from localStorage
             localStorage.removeItem('firstMessage');
+            localStorage.removeItem('isDirectTopicClick');
         } else {
             console.error('addMessageToChat function not available');
         }

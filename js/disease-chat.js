@@ -29,13 +29,30 @@ fetch('24-Disease.json')
  * @returns {string} Formatted response with disease information
  */
 function processDiseaseResponse(aiResponse) {
-    // Extract disease name from AI response
+    // Extract disease name and confidence from AI response
     // Example format: "Prediction: Common Cold (confidence: 85.5%)"
     const match = aiResponse.match(/Prediction: ([^(]+)/);
     if (!match) return aiResponse; // Return original if no match
     
     const diseaseName = match[1].trim();
     console.log(`Processing disease: ${diseaseName}`);
+    
+    // Extract confidence score
+    const confidenceMatch = aiResponse.match(/confidence: ([0-9.]+)%/);
+    let confidenceScore = 0;
+    if (confidenceMatch && confidenceMatch[1]) {
+        confidenceScore = parseFloat(confidenceMatch[1]);
+        console.log(`Confidence score: ${confidenceScore}%`);
+    }
+    
+    // Check if confidence is below 90%
+    if (confidenceScore < 90) {
+        console.log('Confidence below 90%, requesting more information');
+        return `<div class="disease-info">
+            <div class="section-title">🩺 I'm not completely confident about the diagnosis.</div>
+            <div class="section-content">Could you provide a bit more detail about your symptoms? This will help me better understand what you're experiencing and give you a more accurate response.</div>
+        </div>`;
+    }
     
     // Find disease in data
     const disease = diseaseData.find(d => d.name.toLowerCase() === diseaseName.toLowerCase());
