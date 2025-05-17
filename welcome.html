@@ -277,19 +277,121 @@
         </div>
     </div>
     
-    <!-- Dark mode toggle button -->
-    <button id="dark-mode-toggle" class="focus:outline-none" onclick="toggleDarkMode()">
-        <div class="light">
-            <div class="wire"></div>
-            <div class="bulb"></div>
-        </div>
-    </button>
     
+</div>  
+<!-- Settings Modal -->
+<div id="settings-modal" class="fixed inset-0 z-50 hidden">
+    <div id="settings-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-200 opacity-0"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+        <div id="modal-content" class="bg-white dark:bg-[#1e1e1e] rounded-lg shadow-xl w-[85%] max-w-2xl h-[65vh] max-h-[600px] transform transition-all duration-200 scale-95 opacity-0">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between p-4 border-b" style="border-color: #797a7c;">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Settings</h3>
+                <button id="settings-modal-close" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            
+            <!-- Modal Content -->
+            <div class="p-4 space-y-4">
+                <!-- Username Section -->
+                <div class="space-y-2 border-b pb-4" style="border-color: #797a7c;">
+                    <label for="username" class="block text-base font-medium text-gray-700 dark:text-gray-300">Username</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="username" class="flex-1 px-3 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-[#2d2d2d] dark:text-white" style="border-color: #797a7c;" placeholder="Enter your username">
+                        <button id="save-username" class="px-4 py-2 bg-[#1e1e1e] hover:bg-gray-900 text-white font-medium rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white transition-colors dark:bg-[#4e4e4e] dark:hover:bg-[#5e5e5e] dark:focus-visible:ring-gray-200">
+                            Save
+                        </button>
+                    </div>
+                </div>
+            
+                <!-- Dark Mode Toggle -->
+                <div class="flex items-center justify-between border-b pb-4" style="border-color: #797a7c;">
+                    <span class="text-base font-medium text-gray-700 dark:text-gray-300">Dark Mode</span>
+                    <button id="settings-dark-mode-toggle" class="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 dark:bg-gray-700">
+                        <span class="sr-only">Toggle dark mode</span>
+                        <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out translate-x-1 dark:translate-x-6"></span>
+                    </button>
+                </div>
+            
+                <!-- Delete Archives Button -->
+                <div class="pt-4 border-b pb-4" style="border-color: #797a7c;">
+                    <div class="flex items-center justify-between">
+                        <span class="text-base font-medium text-gray-700 dark:text-gray-300">Delete all chats</span>
+                        <button id="delete-archives" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-full hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                            Delete all
+                        </button>
+                    </div>
+                </div>
+            
+                <!-- Log Out Section -->
+                <div class="pt-4" >
+                    <div class="flex items-center justify-between">
+                        <span class="text-base font-medium text-gray-700 dark:text-gray-300">Log out on this device</span>
+                        <button id="log-out" class="px-4 py-2 bg-[#1e1e1e] hover:bg-gray-900 text-white font-medium rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white transition-colors dark:bg-[#4e4e4e] dark:hover:bg-[#5e5e5e] dark:focus-visible:ring-gray-200">
+                            Log out
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div> 
     <script src="js/main.js"></script>
-    <script src="js/chat.js"></script>
-    <script src="js/topic-matcher.js"></script>
-    <script src="js/clinexa.js"></script>
-    <script src="js/topic-handler.js"></script>
-    <script src="js/search.js"></script>
+<script src="js/disease-chat.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/clinexa.js"></script>
+<script src="js/search.js"></script>
+<script src="js/topic-matcher.js"></script>
+<script src="js/focus-manager.js"></script>
+<script src="js/settings.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const firstMessage = localStorage.getItem('firstMessage');
+        if (firstMessage) {
+            // Remove the first message from localStorage
+            localStorage.removeItem('firstMessage');
+
+            // Get the message input and form
+            const messageInput = document.getElementById('message-input');
+            const messageForm = document.getElementById('message-form');
+
+            // Set the message input value
+            if (messageInput) {
+                messageInput.value = firstMessage;
+            }
+
+            // Simulate form submission
+            if (messageForm) {
+                messageForm.dispatchEvent(new Event('submit'));
+            }
+        }
+    });
+</script>
+    <style>
+        @keyframes swing {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(10deg); }
+            75% { transform: rotate(-10deg); }
+        }
+        
+        .swing-animation {
+            animation: swing 2s ease-in-out infinite;
+        }
+        
+        body.light-mode .bulb {
+            background: #fcd34d;
+            border-color: #fcd34d;
+            box-shadow: 0 0 30px #fcd34d;
+        }
+        
+        body.light-mode .bulb-filament {
+            opacity: 1 !important;
+        }
+    </style>
 </body>
 </html>
