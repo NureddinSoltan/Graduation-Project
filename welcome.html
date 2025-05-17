@@ -200,20 +200,26 @@
                         <div id="suggested-topics" class="mt-8">
                             <h2 class="text-lg font-normal text-gray-900 dark:text-white mb-4">Get started with suggested topics</h2>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="bg-white dark:bg-[#252526] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#1e1e1e] hover:bg-gray-100 hover:shadow-md dark:hover:bg-[#1e1e1e] cursor-pointer transition-all duration-200">
+                                <div class="suggested-topic-card bg-white dark:bg-[#252526] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#1e1e1e] hover:bg-gray-100 hover:shadow-md dark:hover:bg-[#1e1e1e] cursor-pointer transition-all duration-200"
+                                     data-topic="What kind of cough should make me see a doctor?">
                                     <p class="text-sm font-normal text-gray-600 dark:text-white">What kind of cough should make me see a doctor?</p>
                                 </div>
-                                <div class="bg-white dark:bg-[#252526] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#1e1e1e] hover:bg-gray-100 hover:shadow-md dark:hover:bg-[#1e1e1e] cursor-pointer transition-all duration-200">
+                                <div class="suggested-topic-card bg-white dark:bg-[#252526] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#1e1e1e] hover:bg-gray-100 hover:shadow-md dark:hover:bg-[#1e1e1e] cursor-pointer transition-all duration-200"
+                                     data-topic="When is a fever considered serious in adults?">
                                     <p class="text-sm font-normal text-gray-600 dark:text-white">When is a fever considered serious in adults?</p>
                                 </div>
-                                <div class="bg-white dark:bg-[#252526] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#1e1e1e] hover:bg-gray-100 hover:shadow-md dark:hover:bg-[#1e1e1e] cursor-pointer transition-all duration-200">
+                                <div class="suggested-topic-card bg-white dark:bg-[#252526] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#1e1e1e] hover:bg-gray-100 hover:shadow-md dark:hover:bg-[#1e1e1e] cursor-pointer transition-all duration-200"
+                                     data-topic="How do I know if my stomach pain needs medical attention?">
                                     <p class="text-sm font-normal text-gray-600 dark:text-white">How do I know if my stomach pain needs medical attention?</p>
                                 </div>
-                                <div class="bg-white dark:bg-[#252526] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#1e1e1e] hover:bg-gray-100 hover:shadow-md dark:hover:bg-[#1e1e1e] cursor-pointer transition-all duration-200">
+                                <div class="suggested-topic-card bg-white dark:bg-[#252526] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#1e1e1e] hover:bg-gray-100 hover:shadow-md dark:hover:bg-[#1e1e1e] cursor-pointer transition-all duration-200"
+                                     data-topic="When does a skin rash mean something more serious?">
                                     <p class="text-sm font-normal text-gray-600 dark:text-white">When does a skin rash mean something more serious?</p>
                                 </div>
                             </div>
                         </div>
+                        
+                        
                         
                         <div class="text-center text-xs text-gray-500 dark:text-gray-400 mt-6">
                             Clinexa may produce inaccurate information. Consult a healthcare professional for medical advice.
@@ -341,13 +347,12 @@
         </div>
     </div>
 </div> 
-    <script src="js/main.js"></script>
-<script src="js/disease-chat.js"></script>
+<script src="js/main.js"></script>
 <script src="js/chat.js"></script>
-<script src="js/clinexa.js"></script>
-<script src="js/search.js"></script>
 <script src="js/topic-matcher.js"></script>
-<script src="js/focus-manager.js"></script>
+<script src="js/clinexa.js"></script>
+<script src="js/topic-handler.js"></script>
+<script src="js/search.js"></script>
 <script src="js/settings.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -393,5 +398,8 @@
             opacity: 1 !important;
         }
     </style>
+    
+       
+    
 </body>
 </html>
