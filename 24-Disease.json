@@ -32,7 +32,7 @@
   "whenToSeeDoctor": "If neck pain persists or worsens.\n\nIf you experience numbness or weakness in limbs.\n\nIf pain interferes with daily activities."
  },
  {
-  "name": "Chickenpox",
+  "name": "Chicken pox",
   "description": "Chickenpox is a contagious viral infection causing an itchy rash and red spots or blisters all over the body.\n",
   "homeCare": "Keep skin clean and dry.\n\nUse calamine lotion to soothe itching.\n\nTrim fingernails to prevent skin infections from scratching.",
   "medications": "Antihistamines (e.g., Diphenhydramine): 25–50 mg every 6–8 hours.\n\nSide Effects: Drowsiness, dry mouth.\n\nAcetaminophen: 500 mg every 4–6 hours for fever.\n\nSide Effects: Liver damage if overused.",
@@ -144,7 +144,7 @@
   "whenToSeeDoctor": "If experiencing difficulty breathing or swelling of the face and throat.\n\nIf symptoms worsen or new symptoms appear.\n\nIf over-the-counter treatments are ineffective."
  },
  {
-  "name": "Gastroesophageal Reflux Disease (GERD)",
+  "name": "Gastroesophageal Reflux Disease",
   "description": "GERD is a chronic condition where stomach acid flows back into the esophagus, causing heartburn and other symptoms.",
   "homeCare": "Eat smaller meals and avoid eating before bedtime.\n\nElevate the head of the bed.\n\nAvoid trigger foods like spicy or fatty foods.",
   "medications": "Antacids (e.g., Tums): Take as needed for symptom relief.\n\nSide Effects: Constipation or diarrhea.\n\nProton Pump Inhibitors (e.g., Omeprazole): 20 mg once daily.\n\nSide Effects: Headache, nausea.",
@@ -160,7 +160,7 @@
   "whenToSeeDoctor": "If experiencing severe abdominal pain.\n\nIf vomiting blood or having black stools.\n\nIf symptoms persist despite treatment."
  },
  {
-  "name": "Urinary Tract Infection (UTI)",
+  "name": "Urinary Tract Infection",
   "description": "A UTI is an infection in any part of the urinary system, commonly the bladder and urethra, causing symptoms like a strong urge to urinate and a burning sensation during urination.",
   "homeCare": "Drink plenty of water to flush out bacteria.\n\nAvoid irritants like caffeine and alcohol.\n\nUse a heating pad to alleviate discomfort.",
   "medications": "Antibiotics (e.g., Nitrofurantoin): As prescribed by a doctor.\n\nSide Effects: Nausea, headache.\n\nPain relievers (e.g., Phenazopyridine): As directed for urinary pain.\n\nSide Effects: Orange-colored urine, dizziness.",

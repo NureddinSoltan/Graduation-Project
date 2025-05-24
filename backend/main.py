@@ -30,9 +30,16 @@ def load_model():
 @app.post("/predict")
 def predict(req: QueryRequest):
     user_message = req.message
-    result = nlp(user_message)
-    # You can customize the response format as needed
-    return {"result": result}
+    result = nlp(user_message, top_k=3)  # Get top 3 predictions
+    # Optional: round the scores and format
+    formatted_result = [
+        {
+            "label": item["label"],
+            "confidence": round(item["score"] * 100, 2)  # convert to percentage
+        }
+        for item in result
+    ]
+    return {"result": formatted_result}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)

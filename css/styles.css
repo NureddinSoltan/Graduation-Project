@@ -426,3 +426,7 @@ button[type="submit"]:hover {
 .dark .submit-btn:disabled svg {
   stroke: #9CA3AF; /* Lighter gray for disabled state */
 }
+
+.dark .suggested-topic-card {
+    background-color: #1e1e1e !important;
+}

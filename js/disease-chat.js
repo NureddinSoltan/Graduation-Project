@@ -7,11 +7,15 @@
 let shownSections = {
     medications: false,
     lifestyle: false,
-    whenToSeeDoctor: false
+    whenToSeeDoctor: false,
+    otherPossibilities: false
 };
 
 // Current disease being discussed
 let currentDisease = null;
+
+// Store all predictions
+let allPredictions = [];
 
 // Load disease data from JSON file
 let diseaseData = [];
@@ -25,61 +29,60 @@ fetch('24-Disease.json')
 
 /**
  * Process AI response for disease diagnosis
- * @param {string} aiResponse - The raw AI response
+ * @param {Array} predictions - Array of top 3 predictions with label and confidence
  * @returns {string} Formatted response with disease information
  */
-function processDiseaseResponse(aiResponse) {
-    // Extract disease name and confidence from AI response
-    // Example format: "Prediction: Common Cold (confidence: 85.5%)"
-    const match = aiResponse.match(/Prediction: ([^(]+)/);
-    if (!match) return aiResponse; // Return original if no match
-    
-    const diseaseName = match[1].trim();
-    console.log(`Processing disease: ${diseaseName}`);
-    
-    // Extract confidence score
-    const confidenceMatch = aiResponse.match(/confidence: ([0-9.]+)%/);
-    let confidenceScore = 0;
-    if (confidenceMatch && confidenceMatch[1]) {
-        confidenceScore = parseFloat(confidenceMatch[1]);
-        console.log(`Confidence score: ${confidenceScore}%`);
+function processDiseaseResponse(predictions) {
+    try {
+        if (!Array.isArray(predictions) || predictions.length === 0) {
+            return "I'm sorry, I couldn't process the prediction results.";
+        }
+
+        // Store all predictions for later use
+        allPredictions = predictions;
+        const topPrediction = predictions[0];
+        const diseaseName = topPrediction.label;
+        const confidenceScore = topPrediction.confidence;
+
+        // Check if confidence is below 70%
+        if (confidenceScore < 70) {
+            return `<div class="disease-info">
+                <div class="section-title">🩺 I'm not completely confident about the diagnosis.</div>
+                <div class="section-content">Could you provide a bit more detail about your symptoms? This will help me better understand what you're experiencing and give you a more accurate response.</div>
+            </div>`;
+        }
+
+        // Find disease in data
+        const disease = diseaseData.find(d => d.name.toLowerCase() === diseaseName.toLowerCase());
+        if (!disease) {
+            return "I'm sorry, I couldn't find detailed information about this condition.";
+        }
+
+        currentDisease = disease;
+        resetShownSections();
+        
+        // Format the primary disease response (which already includes the four options)
+        let response = formatDiseaseResponse(disease, confidenceScore);
+        
+        // Do NOT append any extra 'Other possibilities' button or section here
+        // The four options are already rendered by formatDiseaseResponse
+        
+        return response;
+    } catch (error) {
+        console.error('Error processing disease response:', error);
+        return "I'm sorry, I encountered an error while processing the diagnosis.";
     }
-    
-    // Check if confidence is below 90%
-    if (confidenceScore < 90) {
-        console.log('Confidence below 90%, requesting more information');
-        return `<div class="disease-info">
-            <div class="section-title">🩺 I'm not completely confident about the diagnosis.</div>
-            <div class="section-content">Could you provide a bit more detail about your symptoms? This will help me better understand what you're experiencing and give you a more accurate response.</div>
-        </div>`;
-    }
-    
-    // Find disease in data
-    const disease = diseaseData.find(d => d.name.toLowerCase() === diseaseName.toLowerCase());
-    if (!disease) {
-        console.log(`Disease not found: ${diseaseName}`);
-        return aiResponse; // Return original if disease not found
-    }
-    
-    // Store current disease for follow-up
-    currentDisease = disease;
-    
-    // Reset shown sections
-    resetShownSections();
-    
-    // Format initial response with disease description and home care
-    return formatDiseaseResponse(disease);
 }
 
 /**
  * Format the disease information for display
  * @param {Object} disease - The disease object
+ * @param {number} confidenceScore - The confidence score of the diagnosis
  * @returns {string} Formatted HTML for the disease information
  */
-function formatDiseaseResponse(disease) {
-    // Create formatted response with emoji and styling
-    let response = `<div class="disease-info">
-        <div class="disease-title">🩺 <strong>${disease.name}</strong></div>
+function formatDiseaseResponse(disease, confidenceScore) {
+    return `<div class="disease-info">
+        <div class="disease-title">🩺 <strong>${disease.name}</strong> <span class='text-xs text-gray-500'>(Confidence: ${confidenceScore}%)</span></div>
         <div class="disease-section">
             <div class="section-title"><strong>Description:</strong></div>
             <div class="section-content">${formatTextWithBullets(disease.description)}</div>
@@ -88,12 +91,13 @@ function formatDiseaseResponse(disease) {
             <div class="section-title"><strong>Home Care Tips:</strong></div>
             <div class="section-content">${formatTextWithBullets(disease.homeCare)}</div>
         </div>
+        <div class="follow-up-options">
+            <button class="option-button" onclick="handleFollowUpOption('lifestyle')">🏃 Lifestyle recommendations</button>
+            <button class="option-button" onclick="handleFollowUpOption('medications')">💊 Medication recommendation</button>
+            <button class="option-button" onclick="handleFollowUpOption('whenToSeeDoctor')">👨‍⚕️ When to see a doctor</button>
+            <button class="option-button" onclick="handleFollowUpOption('otherPossibilities')">🩺 Other possibilities</button>
+        </div>
     </div>`;
-    
-    // Add follow-up options
-    response += generateFollowUpOptions();
-    
-    return response;
 }
 
 /**
@@ -122,35 +126,6 @@ function formatTextWithBullets(text, type = 'default') {
 }
 
 /**
- * Generate follow-up option buttons
- * @returns {string} HTML for follow-up option buttons
- */
-function generateFollowUpOptions() {
-    let options = '<div class="follow-up-options">';
-    
-    // Only show options that haven't been selected yet
-    if (!shownSections.medications) {
-        options += `<button class="option-button" onclick="handleFollowUpOption('medications')">💊 Do you need to know recommended medication?</button>`;
-    }
-    
-    if (!shownSections.lifestyle) {
-        options += `<button class="option-button" onclick="handleFollowUpOption('lifestyle')">🏃 Life style recommendations?</button>`;
-    }
-    
-    if (!shownSections.whenToSeeDoctor) {
-        options += `<button class="option-button" onclick="handleFollowUpOption('whenToSeeDoctor')">👨‍⚕️ When to see a doctor?</button>`;
-    }
-    
-    // If all sections have been shown, offer to restart
-    if (shownSections.medications && shownSections.lifestyle && shownSections.whenToSeeDoctor) {
-        options += `<button class="option-button" onclick="handleFollowUpOption('restart')">🩺 New symptoms?</button>`;
-    }
-    
-    options += '</div>';
-    return options;
-}
-
-/**
  * Handle user selection of a follow-up option
  * @param {string} option - The selected option
  * @returns {string} Response for the selected option
@@ -162,13 +137,14 @@ function handleFollowUpOption(option) {
         // Reset the conversation state
         resetShownSections();
         currentDisease = null;
+        allPredictions = [];
         return "What symptoms are you experiencing?";
     }
     
     // Check for currentDisease for other options
     if (!currentDisease) return "I'm sorry, I don't have information about this disease.";
     
-    // Mark this section as shown
+    // Mark this section as shown BEFORE generating follow-up options
     shownSections[option] = true;
     
     // Format response based on selected option
@@ -191,12 +167,86 @@ function handleFollowUpOption(option) {
                 <div class="section-content">${formatTextWithBullets(currentDisease.whenToSeeDoctor)}</div>
             </div>`;
             break;
+        case 'otherPossibilities':
+            if (allPredictions.length > 1) {
+                // Get alternative predictions (excluding the top one)
+                const alternatives = allPredictions.slice(1);
+                const possibilitiesContent = alternatives.map((pred, index) => {
+                    return `<button class="text-left hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200" onclick="handleAlternativePrediction('${pred.label}', ${pred.confidence})">
+                        ${index + 2}. ${pred.label} — ${pred.confidence}%
+                    </button>`;
+                }).join('<br>');
+                
+                response = `<div class="disease-section">
+                    <div class="section-title"><strong>🩺 Other Possibilities Considered:</strong></div>
+                    <div class="section-content">Based on your symptoms, I also considered these conditions but found them less likely to match your case:</div>
+                    <div class="section-content mt-2">${possibilitiesContent}</div>
+                </div>`;
+            } else {
+                response = `<div class="disease-section">
+                    <div class="section-title"><strong>🩺 Other Possibilities:</strong></div>
+                    <div class="section-content">No other conditions were considered with high confidence.</div>
+                </div>`;
+            }
+            break;
     }
     
-    // Add remaining follow-up options
+    // Add remaining follow-up options (which will NOT include 'Other possibilities' if just clicked)
     response += generateFollowUpOptions();
     
     return response;
+}
+
+/**
+ * Generate follow-up options based on what hasn't been shown yet
+ * @returns {string} HTML for follow-up options
+ */
+function generateFollowUpOptions() {
+    let options = [];
+    // Only show medical-related options that haven't been shown yet, in the correct order
+    if (!shownSections.lifestyle) {
+        options.push(`<button class="option-button" onclick="handleFollowUpOption('lifestyle')">🏃 Lifestyle recommendations</button>`);
+    }
+    if (!shownSections.medications) {
+        options.push(`<button class="option-button" onclick="handleFollowUpOption('medications')">💊 Medication recommendation</button>`);
+    }
+    if (!shownSections.whenToSeeDoctor) {
+        options.push(`<button class="option-button" onclick="handleFollowUpOption('whenToSeeDoctor')">👨‍⚕️ When to see a doctor</button>`);
+    }
+    // Always show 'Other possibilities' if it hasn't been clicked yet
+    if (!shownSections.otherPossibilities && allPredictions.length > 1) {
+        options.push(`<button class="option-button" onclick="handleFollowUpOption('otherPossibilities')">🩺 Other possibilities</button>`);
+    }
+    // Only show "New symptoms" button if ALL THREE medical options have been shown
+    if (shownSections.medications && shownSections.lifestyle && shownSections.whenToSeeDoctor) {
+        options.push(`<button class="option-button" onclick="handleFollowUpOption('restart')">🩺 New symptoms?</button>`);
+    }
+    return `<div class="follow-up-options">${options.join('')}</div>`;
+}
+
+/**
+ * Handle click on alternative prediction
+ * @param {string} diseaseName - The name of the selected disease
+ * @param {number} confidenceScore - The confidence score of the selected disease
+ */
+function handleAlternativePrediction(diseaseName, confidenceScore) {
+    // Find the disease in our data
+    const disease = diseaseData.find(d => d.name.toLowerCase() === diseaseName.toLowerCase());
+    if (!disease) return;
+    
+    // Update current disease
+    currentDisease = disease;
+    
+    // Reset shown sections
+    resetShownSections();
+    
+    // Format and display the disease information
+    const response = formatDiseaseResponse(disease, confidenceScore);
+    
+    // Add the response to the chat
+    if (typeof addMessageToChat === 'function') {
+        addMessageToChat(response, false, true);
+    }
 }
 
 /**
@@ -213,9 +263,10 @@ function processYesResponse(userMessage) {
     if (!currentDisease) return false;
     
     // If all sections have been shown, treat as restart
-    if (shownSections.medications && shownSections.lifestyle && shownSections.whenToSeeDoctor) {
+    if (shownSections.medications && shownSections.lifestyle && shownSections.whenToSeeDoctor && shownSections.otherPossibilities) {
         resetShownSections();
         currentDisease = null;
+        allPredictions = [];
         return "What symptoms are you experiencing?";
     }
     
@@ -246,6 +297,32 @@ function processYesResponse(userMessage) {
         </div>`;
     }
     
+    if (!shownSections.otherPossibilities) {
+        shownSections.otherPossibilities = true;
+        let possibilitiesContent = '';
+        if (allPredictions.length > 1) {
+            // Get alternative predictions (excluding the top one)
+            const alternatives = allPredictions.slice(1);
+            possibilitiesContent = alternatives.map((pred, index) => {
+                const disease = diseaseData.find(d => d.name.toLowerCase() === pred.label.toLowerCase());
+                if (disease) {
+                    return `<button class="text-left hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200" onclick="handleAlternativePrediction('${pred.label}', ${pred.confidence})">
+                        ${index + 2}. ${pred.label} — ${pred.confidence}%
+                    </button>`;
+                }
+                return `${index + 2}. ${pred.label} — ${pred.confidence}%`;
+            }).join('<br>');
+        } else {
+            possibilitiesContent = "No other conditions were considered with high confidence.";
+        }
+        
+        response += `<div class="disease-section">
+            <div class="section-title"><strong>🩺 Other Possibilities Considered:</strong></div>
+            <div class="section-content">Based on your symptoms, I also considered these conditions but found them less likely to match your case:</div>
+            <div class="section-content mt-2">${possibilitiesContent}</div>
+        </div>`;
+    }
+    
     // Add restart option
     response += `<div class="follow-up-options">
         <button class="option-button" onclick="handleFollowUpOption('restart')">🩺 New symptoms?</button>
@@ -261,7 +338,8 @@ function resetShownSections() {
     shownSections = {
         medications: false,
         lifestyle: false,
-        whenToSeeDoctor: false
+        whenToSeeDoctor: false,
+        otherPossibilities: false
     };
 }
 
@@ -269,3 +347,4 @@ function resetShownSections() {
 window.processDiseaseResponse = processDiseaseResponse;
 window.handleFollowUpOption = handleFollowUpOption;
 window.processYesResponse = processYesResponse;
+window.handleAlternativePrediction = handleAlternativePrediction;

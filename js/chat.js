@@ -16,17 +16,11 @@ async function getModelPrediction(userMessage) {
         }
         const data = await response.json();
         console.log('Received response from AI model:', data);
-        // You can customize this based on your backend's response format
-        if (data.result && data.result.length > 0) {
-            // Format: [{label: ..., score: ...}]
-            const top = data.result[0];
-            return `Prediction: ${top.label} (confidence: ${(top.score * 100).toFixed(1)}%)`;  
-        } else {
-            return 'AI could not process your request.';
-        }
+        // Return the full JSON result for downstream processing
+        return data;
     } catch (error) {
         console.error('Error contacting AI backend:', error);
-        return 'Error contacting AI backend. Please make sure the backend server is running.';
+        return { error: 'Error contacting AI backend. Please make sure the backend server is running.' };
     }
 } 
 
@@ -268,12 +262,12 @@ async function processUserMessage(userMessage, loadingId, chatContainer) {
                 let isDiseaseResponse = false;
                 
                 if (typeof window.processDiseaseResponse === 'function') {
-                    // Check if this is a disease prediction response
-                    if (aiResponse.includes('Prediction:')) {
-                        processedResponse = window.processDiseaseResponse(aiResponse);
+                    if (aiResponse.result && Array.isArray(aiResponse.result)) {
+                        // New structure: top 3 predictions returned as an array
+                        processedResponse = window.processDiseaseResponse(aiResponse.result);
                         isDiseaseResponse = true;
-                    } else if (aiResponse.includes('🩺') || aiResponse.includes('Description:')) {
-                        // This is already a processed disease response (coming from welcome page)
+                    } else if (typeof aiResponse === 'string' && (aiResponse.includes('🩺') || aiResponse.includes('Description:'))) {
+                        // Old fallback
                         processedResponse = aiResponse;
                         isDiseaseResponse = true;
                     }
@@ -311,6 +305,14 @@ async function processUserMessage(userMessage, loadingId, chatContainer) {
                         if (isDiseaseResponse) {
                             // For disease responses, we want to maintain the original structure
                             contentDiv.innerHTML = processedResponse;
+                            
+                            // Ensure smooth scrolling to the new content
+                            setTimeout(() => {
+                                chatContainer.scrollTo({
+                                    top: chatContainer.scrollHeight,
+                                    behavior: 'smooth'
+                                });
+                            }, 50);
                         } else {
                             // For other HTML content, process sections one by one
                             const sections = doc.querySelectorAll('*:not(script):not(style)');
