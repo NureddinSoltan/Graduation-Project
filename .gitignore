@@ -1,3 +1,4 @@
 model/model.safetensors
 model/model.safetensors
 model/model.safetensors
+medical-assistant-backend/db.sqlite3
